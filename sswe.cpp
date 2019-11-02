@@ -3,12 +3,51 @@
 #include <set>
 #include <string>
 #include <sstream>
+#include <algorithm>
 using namespace std;
 
 
 const int IDX_LEN = 26;
 const int VALID = 1;
 const int INVALID = 0;
+
+
+bool t_sort(string a, string b) {
+    /* Sort by descinding number of GAMMA letters in string */
+    int a_sum = 0;
+    int b_sum = 0;
+    for (char c : a) {
+        if ((int)c < 97){
+            ++a_sum;
+        }
+    }
+
+    for (char c : b) {
+        if ((int)c < 97){
+            ++b_sum;
+        }
+    }
+
+    return a_sum > b_sum;
+}
+
+
+void print_idx(int *idx){
+    for (int i=0; i<IDX_LEN; i++)
+        cout << idx[i] << " ";
+
+    cout << endl;
+}
+
+
+void print_opts_vec(vector< vector<int> > opts) {
+    for (int i=0; i<opts.size(); i++) {
+        for (int j=0; j<opts[i].size(); j++){
+            cout << opts[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
 
 
 int pass(int *idx, vector< vector<string> > R_arr) {
@@ -34,12 +73,8 @@ bool equal(int *arr1, int *arr2) {
 }
 
 
-bool increment(int *idx_arr, int *max_arr) {
-    if (equal(idx_arr, max_arr)) {
-        return false;
-    }
-
-    for (int i=IDX_LEN-1; i>-1; i--) {
+void increment(int *idx_arr, int *max_arr) {
+   for (int i=IDX_LEN-1; i>-1; i--) {
         if (idx_arr[i] != -1) {
             idx_arr[i]++;
             if (idx_arr[i] > max_arr[i])
@@ -48,7 +83,6 @@ bool increment(int *idx_arr, int *max_arr) {
                 break;
         }
     }
-    return true;
 }
 
 
@@ -170,18 +204,25 @@ vector< set<int> > get_opts(string s, string t, vector< vector<string> > R_arr, 
         max_arr[i] = -1;
     }
 
+    int can_edit[IDX_LEN];
+    for (int i=0; i<IDX_LEN; i++){
+        can_edit[i] = (i >= opts.size()) || (opts[i].size() == 1 && opts[i].find(-1) != opts[i].end());
+    }
+
     int c;
+    int m = 1;
     for (int i=0; i<t.length(); i++){
         c = (int)t.at(i);
         // Upper case letters start at 65, lower case start at 97
         if (c < 97) {
             idx_arr[c-65] = 0;
             max_arr[c-65] = R_arr[c-65].size() - 1;
+            m *= max_arr[c-65]+1;
         }
     }
 
     vector<string> r;
-    do {
+    for (int c=0; c<m; c++) {
         r = get_r(idx_arr, R_arr);
         if (test(s, t, r)){
             for(int i=0; i<IDX_LEN; i++) {
@@ -192,15 +233,16 @@ vector< set<int> > get_opts(string s, string t, vector< vector<string> > R_arr, 
                     opt.insert(idx_arr[i]);
                     opts.push_back(opt);
                 } else {
-                    opts[i].insert(idx_arr[i]);
+                    if (can_edit[i])
+                        opts[i].insert(idx_arr[i]);
                 }
             }
         }
-    } while (increment(idx_arr, max_arr));
+        increment(idx_arr, max_arr);
+    }
 
     return opts;
 }
-
 
 
 int main() {
@@ -243,6 +285,10 @@ int main() {
         return fail();
     }
 
+    /* Sort t_arr by descending number of upper case letters
+       to tackle most restrictive cases first. */
+    sort(t_arr.begin(), t_arr.end(), t_sort);
+
     /* COMPUTE SOLUTION TO EACH TEST CASE */
     vector< vector<int> > opts_vec;
     vector< set<int> > opts;
@@ -254,25 +300,32 @@ int main() {
     opts_vec = get_opts_vec(opts);
 
     /* CHECK ALL PERMUTATIONS AND COMBINATIONS OF OPTS */
-    int idx_arr[26];
+    int opt_idx[26];
     int max_arr[26];
+    int idx[26];
+    int m=1;
     for (int i=0; i<IDX_LEN; i++){
-        idx_arr[i] = 0;
+        opt_idx[i] = 0;
         max_arr[i] = opts_vec[i].size() - 1;
+        m *= max_arr[i]+1;
     }
 
     bool solved = false;
     vector<string> r;
-    do {
-        r = get_r(idx_arr, R_arr);
+    for (int c=0; c<m; c++) {
+        for (int i=0; i<IDX_LEN; i++) {
+            idx[i] = opts_vec[i][opt_idx[i]];
+        }
+        r = get_r(idx, R_arr);
         if (test_all(s, t_arr, r)) {
             solved = true;
             break;
         }
-    } while (increment(idx_arr, max_arr));
+        increment(opt_idx, max_arr);
+    }
 
     if (solved) {
-        return pass(idx_arr, R_arr);
+        return pass(idx, R_arr);
     } else {
         return fail();
     }
